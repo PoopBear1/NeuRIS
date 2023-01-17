@@ -41,7 +41,8 @@ Refer to the [file](https://github.com/jiepengwang/NeuRIS/blob/main/preprocess/R
 ```
 conda create -n neuris python=3.8
 conda activate neuris
-conda install pytorch=1.9.0 torchvision torchaudio cudatoolkit=10.2 -c pytorch
+~~conda install pytorch=1.9.0 torchvision torchaudio cudatoolkit=10.2 -c pytorch~~
+conda install pytorch==1.8.0 torchvision==0.9.0 torchaudio==0.8.0 cudatoolkit=10.2 -c pytorch
 pip install -r requirements.txt
 ```
 
