@@ -92,6 +92,7 @@ def read_images(dir, target_img_size = None, interpolation=cv2.INTER_LINEAR, img
         raise NotImplementedError
 
     vec_path = sorted(glob.glob(f"{dir}/**{img_ext}"))
+
     if vec_stems is not None:
         vec_path = []
         for stem_curr in vec_stems:
@@ -108,7 +109,9 @@ def read_images(dir, target_img_size = None, interpolation=cv2.INTER_LINEAR, img
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         rgbs.append(img)
 
+
         _, stem, _ = IOUtils.get_path_components(vec_path[i])
+
         img_stems.append(stem)
     return np.array(rgbs), img_stems
 
