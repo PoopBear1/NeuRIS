@@ -507,9 +507,10 @@ class Dataset:
         # ? 并且乘以intrinsic的倒数
         p = torch.matmul(self.intrinsics_all_inv[img_idx, None, :3, :3], p[:, :, None]).squeeze()  # batch_size, 3
         # ? 为什么单位向量可以代表ray的view? 并且还要与pose相乘
+        # ? 如何理解这个地方的 rays_v，rays_o 并且他们之间的相互计算  （取batch_size个射线）
         rays_v = p / torch.linalg.norm(p, ord=2, dim=-1, keepdim=True)  # batch_size, 3
         rays_v = torch.matmul(pose_cur[None, :3, :3], rays_v[:, :, None]).squeeze()  # batch_size, 3
-        # ? 如何理解这个地方的 rays_v，rays_o
+
         rays_o = pose_cur[None, :3, 3].expand(rays_v.shape)  # batch_size, 3
 
         normal_sample = None
@@ -530,6 +531,7 @@ class Dataset:
 
     def near_far_from_sphere(self, rays_o, rays_d):
         # torch
+        #? 这个是sphere tracing吗， 公式感觉跟之前的不一样
         assert self.sphere_radius is not None
         a = torch.sum(rays_d ** 2, dim=-1, keepdim=True)
         b = 2.0 * torch.sum(rays_o * rays_d, dim=-1, keepdim=True)

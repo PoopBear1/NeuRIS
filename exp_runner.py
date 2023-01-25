@@ -223,14 +223,20 @@ class Runner:
         log_vox = {}
         log_vox.clear()
         batch_size = len(rays_o)
+        # ? near与far的计算方式需要再看看, sample_range_indoor具体代表了什么
         if self.dataset_type == 'dtu':
             near, far = self.dataset.near_far_from_sphere(rays_o, rays_d)
         elif self.dataset_type == 'indoor':
+            # near.shape = (batch_size, 1), far.shape = (batch_size, 1)
+            # near = [0,...,0]^T
+            # far = (sample_range_indoor * [1,...,1])^T
             near, far = torch.zeros(batch_size, 1), self.sample_range_indoor * torch.ones(batch_size, 1)
         else:
             NotImplementedError
 
         logging.debug(f"[{self.iter_step}] Sample range: max, {torch.max(far - near)}; min, {torch.min(far - near)}")
+        # logging.info(f"[{self.iter_step}] Sample range: max, {torch.max(far - near)}; min, {torch.min(far - near)}")
+
         return near, far, log_vox
 
     def get_model_input(self, image_perm, iter_i):
@@ -241,23 +247,29 @@ class Runner:
         #？这里面有不会的东西
         data, pixels_x, pixels_y, normal_sample, planes_sample, subplanes_sample = self.dataset.random_get_rays_at(
             idx_img, self.batch_size)
-        # @ here
+
         rays_o, rays_d, true_rgb, true_mask = data[:, :3], data[:, 3: 6], data[:, 6: 9], data[:, 9: 10]
         true_mask = (true_mask > 0.5).float()
         mask = true_mask
 
+        # normal的权重占比
         if self.conf['model.loss.normal_weight'] > 0:
             input_model['normals_gt'] = normal_sample
 
+        # normal可信度的权重占比
         if self.conf['model.loss.normal_consistency_weight'] > 0:
             input_model['planes_gt'] = planes_sample
 
+        # plane priors的权重占比 (?这个plane是不是就是曼哈顿假设里面的那个plane)
         if self.conf['model.loss.plane_offset_weight'] > 0:
             input_model['subplanes_gt'] = subplanes_sample
 
+
+        # ? near, far 意义何在, logs_input 永远返回一个空字典
         near, far, logs_input = self.get_near_far(rays_o, rays_d, image_perm, iter_i, pixels_x, pixels_y)
 
         background_rgb = None
+
         if self.use_white_bkgd:
             background_rgb = torch.ones([1, 3])
 
@@ -265,9 +277,9 @@ class Runner:
             mask = (mask > 0.5).float()
         else:
             mask = torch.ones_like(mask)
-
+        # ？ why add 1e-5？
         mask_sum = mask.sum() + 1e-5
-
+        # ? 为何要两个 vu, uv
         pixels_uv = torch.stack([pixels_x, pixels_y], dim=-1)
         pixels_vu = torch.stack([pixels_y, pixels_x], dim=-1)
         input_model.update({
@@ -305,14 +317,14 @@ class Runner:
             logs_summary.clear()
 
             input_model, logs_input = self.get_model_input(image_perm, iter_i)
-            # print(type(input_model),type(logs_input))
-            # exit(-1)
             logs_summary.update(logs_input)
-
             render_out, logs_render = self.renderer.render(input_model['rays_o'], input_model['rays_d'],
                                                            input_model['near'], input_model['far'],
                                                            background_rgb=input_model['background_rgb'],
                                                            alpha_inter_ratio=self.get_alpha_inter_ratio())
+            # @here
+            exit("wait here")
+
             logs_summary.update(logs_render)
 
             patchmatch_out, logs_patchmatch = self.patch_match(input_model, render_out)
