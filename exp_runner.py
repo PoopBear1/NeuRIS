@@ -37,7 +37,7 @@ class Runner:
         # ConfigTree([('general', ConfigTree([('dataset_type', 'indoor'), ('scan_name', 'scene0625_00'), ('exp_name', 'exp_scene0625_00'), ('exp_dir', './exps'), ('data_dir', './dataset'), ('model_type', 'neus'), ('recording', ['./', './models'])])), ('dataset', ConfigTree([('denoise_gray_image', True), ('denoise_paras', [7, 21, 10, 10]), ('patchmatch_start', 60000.0), ('patchmatch_mode', 'use_geocheck'), ('patchmatch_thres_ncc_robust', 0.66), ('check_occlusion', True), ('mode_init_accum', 'model'), ('init_accum_reso_level', 4), ('init_accum_step_npz', 60000.0), ('sample_range_indoor', 2.0), ('bbox_size_half', 1.0), ('sphere_radius', 1.0), ('resolution_level', 1.0), ('estimate_scale_mat', False), ('cache_all_data', False), ('mask_out_image', False)])), ('train', ConfigTree([('batch_size', 512), ('learning_rate', 0.0002), ('learning_rate_milestone', [100000, 150000, 200000]), ('learning_rate_factor', 0.5), ('end_iter', 160000), ('save_freq', 20000), ('val_image_freq', 2000), ('save_normamap_npz', False), ('val_mesh_freq', 5000), ('val_depth_freq', 1000000), ('val_fields_freq', 1000000), ('freq_valid_points', 50000), ('freq_valid_weights', 500000), ('freq_save_confidence', 2000000), ('report_freq', 1000), ('validate_resolution_level', 2), ('anneal_start', 0), ('anneal_end', 25000), ('use_white_bkgd', False), ('warm_up_end', 5000), ('learning_rate_alpha', 0.05)])), ('model', ConfigTree([('tiny_nerf', ConfigTree([('D', 8), ('d_in', 4), ('d_in_view', 3), ('W', 256), ('multires', 10), ('multires_view', 4), ('output_ch', 4), ('skips', [4]), ('use_viewdirs', True)])), ('nerf', ConfigTree([('D', 8), ('d_in', 3), ('d_in_view', 3), ('W', 256), ('multires', 10), ('multires_view', 4), ('output_ch', 4), ('skips', [4]), ('use_viewdirs', True)])), ('sdf_network', ConfigTree([('bias', 0.6), ('d_out', 257), ('d_in', 3), ('d_hidden', 256), ('n_layers', 8), ('skip_in', [4]), ('scale', 1.0), ('geometric_init', True), ('reverse_geoinit', True), ('weight_norm', True), ('activation', 'softplus'), ('multires', 6), ('use_emb_c2f', False), ('emb_c2f_start', 0.1), ('emb_c2f_end', 0.5)])), ('variance_network', ConfigTree([('init_val', 0.3), ('use_fixed_variance', False)])), ('rendering_network', ConfigTree([('d_feature', 256), ('mode', 'idr'), ('d_in', 9), ('d_out', 3), ('d_hidden', 256), ('n_layers', 4), ('weight_norm', True), ('multires_view', 4), ('squeeze_out', True)])), ('neus_renderer', ConfigTree([('n_samples', 64), ('n_importance', 64), ('n_outside', 0), ('perturb', 1.0), ('alpha_type', 'div')])), ('nerf_renderer', ConfigTree([('n_samples', 64), ('n_importance', 64), ('n_outside', 0), ('perturb', 1.0)])), ('loss', ConfigTree([('color_weight', 1.0), ('igr_weight', 0.1), ('mask_weight', 0.0), ('smooth_weight', 0.0), ('depth_weight', 0.0), ('normal_weight', 1.0), ('plane_loss_milestone', 100000.0), ('normal_consistency_weight', 0.0), ('manhattan_constrain_weight', 0.0), ('plane_offset_weight', 0.0), ('warm_up_start', 0), ('warm_up_end', 20000.0)]))]))])
 
         print(self.conf)
-
+        exit(-1)
         self.dataset_type = self.conf['general.dataset_type']  # either indoor / DTU
         self.scan_name = self.conf['general.scan_name']  # scene name
 
@@ -183,7 +183,7 @@ class Runner:
             params_to_train += list(self.variance_network_fine.parameters())
             params_to_train += list(self.color_network_fine.parameters())
             # ? 这是所有网络的参数丢给adam一起优化
-            print(len(params_to_train))
+            # print(len(params_to_train))
 
             self.renderer = NeuSRenderer(self.nerf_outside,
                                          self.sdf_network_fine,
@@ -326,7 +326,7 @@ class Runner:
             logs_summary.update(logs_render)
 
             # @here
-            exit("wait here")
+            # exit("wait here")
 
             patchmatch_out, logs_patchmatch = self.patch_match(input_model, render_out)
             logs_summary.update(logs_patchmatch)
@@ -1258,7 +1258,7 @@ class Runner:
 
 
 if __name__ == '__main__':
-    # torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
     FORMAT = "[%(filename)s:%(lineno)s] %(message)s"
     logging.basicConfig(level=logging.INFO, format=FORMAT)
 

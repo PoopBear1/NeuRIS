@@ -432,7 +432,7 @@ class Dataset:
         ty = torch.linspace(0, self.H - 1, self.H // l)
         pixels_x, pixels_y = torch.meshgrid(tx, ty)
         p = torch.stack([pixels_x, pixels_y, torch.ones_like(pixels_y)], dim=-1)  # W, H, 3
-        print(self.intrinsics_all_inv.device, p.device)
+        # print(self.intrinsics_all_inv.device, p.device)
         p = torch.matmul(self.intrinsics_all_inv[img_idx, None, None, :3, :3], p[:, :, :, None]).squeeze()  # W, H, 3
         rays_v = p / torch.linalg.norm(p, ord=2, dim=-1, keepdim=True)  # W, H, 3
         rays_v = torch.matmul(pose_cur[None, None, :3, :3], rays_v[:, :, :, None]).squeeze()  # W, H, 3
@@ -492,11 +492,8 @@ class Dataset:
         # pose_cur = pose_cur.cpu()
         # img_idx = img_idx.cpu()
         # self.intrinsics_all_inv = self.intrinsics_all_inv.cpu()
-        # pixels_x = torch.randint(low=0, high=self.W, size=[batch_size]).cpu()
-        # pixels_y = torch.randint(low=0, high=self.H, size=[batch_size]).cpu()
-
-        pixels_x = torch.randint(low=0, high=self.W, size=[batch_size])
-        pixels_y = torch.randint(low=0, high=self.H, size=[batch_size])
+        pixels_x = torch.randint(low=0, high=self.W, size=[batch_size]).cpu()
+        pixels_y = torch.randint(low=0, high=self.H, size=[batch_size]).cpu()
 
         # random choose batch_size pixels as colors from an img
         color = self.images[img_idx][(pixels_y, pixels_x)]  # batch_size, 3
