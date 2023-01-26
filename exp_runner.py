@@ -182,7 +182,7 @@ class Runner:
             params_to_train += list(self.sdf_network_fine.parameters())
             params_to_train += list(self.variance_network_fine.parameters())
             params_to_train += list(self.color_network_fine.parameters())
-            # ? 这是所有网络的参数丢给adam一起优化？？
+            # ? 这是所有网络的参数丢给adam一起优化
             print(len(params_to_train))
 
             self.renderer = NeuSRenderer(self.nerf_outside,
@@ -206,7 +206,7 @@ class Runner:
 
         else:
             NotImplementedError
-
+        # ? Question in line 184
         self.optimizer = torch.optim.Adam(params_to_train, lr=self.learning_rate)
 
         self.loss_neus = NeuSLoss(self.conf['model.loss'])
@@ -322,10 +322,11 @@ class Runner:
                                                            input_model['near'], input_model['far'],
                                                            background_rgb=input_model['background_rgb'],
                                                            alpha_inter_ratio=self.get_alpha_inter_ratio())
-            # @here
-            exit("wait here")
 
             logs_summary.update(logs_render)
+
+            # @here
+            exit("wait here")
 
             patchmatch_out, logs_patchmatch = self.patch_match(input_model, render_out)
             logs_summary.update(logs_patchmatch)
@@ -394,6 +395,8 @@ class Runner:
         patchmatch_out, logs_summary = None, {}
         if self.iter_step > self.patchmatch_start:
             # ensure initialization of confidence_map, depth_map and points_map
+            print(self.dataset.confidence_accum)
+            exit(-2)
             if self.dataset.confidence_accum is None:
                 self.initialize_accumulated_results(mode=self.conf['dataset.mode_init_accum'],
                                                     iter_step_npz=self.conf['dataset.init_accum_step_npz'],

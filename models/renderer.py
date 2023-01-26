@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import numpy as np
 import mcubes
 
+
 def extract_fields(bound_min, bound_max, resolution, query_func):
     N = 64
     X = torch.linspace(bound_min[0], bound_max[0], resolution).split(N)
@@ -100,7 +101,7 @@ class NeuSRenderer:
 
         if self.n_outside > 0:
             dis_to_center = torch.linalg.norm(pts, ord=2, dim=-1, keepdim=True).clip(1.0, 1e10)
-            pts = torch.cat([pts / dis_to_center, 1.0 / dis_to_center], dim=-1)       # batch_size, n_samples, 4
+            pts = torch.cat([pts / dis_to_center, 1.0 / dis_to_center], dim=-1)  # batch_size, n_samples, 4
 
         dirs = rays_d[:, None, :].expand(batch_size, n_samples, 3)
 
@@ -110,7 +111,8 @@ class NeuSRenderer:
         density, sampled_color = nerf(pts, dirs)
         alpha = 1.0 - torch.exp(-F.softplus(density.reshape(batch_size, n_samples)) * dists)
         alpha = alpha.reshape(batch_size, n_samples)
-        weights = alpha * torch.cumprod(torch.cat([torch.ones([batch_size, 1]), 1. - alpha + 1e-7], -1), -1)[:, :-1]  # n_rays, n_samples
+        weights = alpha * torch.cumprod(torch.cat([torch.ones([batch_size, 1]), 1. - alpha + 1e-7], -1), -1)[:,
+                          :-1]  # n_rays, n_samples
         sampled_color = sampled_color.reshape(batch_size, n_samples, 3)
         color = (weights[:, :, None] * sampled_color).sum(dim=1)
         if background_rgb is not None:
@@ -122,7 +124,6 @@ class NeuSRenderer:
             'alpha': alpha,
             'weights': weights,
         }
-
 
     def up_sample(self, rays_o, rays_d, z_vals, sdf, n_importance, inv_variance):
         batch_size, n_samples = z_vals.shape
@@ -193,7 +194,7 @@ class NeuSRenderer:
 
         pts = pts.reshape(-1, 3)
         dirs = dirs.reshape(-1, 3)
-        
+
         sdf_nn_output = sdf_network(pts)
         sdf = sdf_nn_output[:, :1]
         feature_vector = sdf_nn_output[:, 1:]
@@ -203,10 +204,11 @@ class NeuSRenderer:
 
         inv_variance = variance_network(torch.zeros([1, 3]))[:, :1].clip(1e-6, 1e6)
         inv_variance = inv_variance.expand(batch_size * n_samples, 1)
-        
+
         true_dot_val = (dirs * gradients).sum(-1, keepdim=True)
 
-        iter_cos = -(F.relu(-true_dot_val * 0.5 + 0.5) * (1.0 - alpha_inter_ratio) + F.relu(-true_dot_val) * alpha_inter_ratio) # always non-positive
+        iter_cos = -(F.relu(-true_dot_val * 0.5 + 0.5) * (1.0 - alpha_inter_ratio) + F.relu(
+            -true_dot_val) * alpha_inter_ratio)  # always non-positive
 
         true_estimate_sdf_half_next = sdf + iter_cos.clip(-10.0, 10.0) * dists.reshape(-1, 1) * 0.5
         true_estimate_sdf_half_prev = sdf - iter_cos.clip(-10.0, 10.0) * dists.reshape(-1, 1) * 0.5
@@ -232,16 +234,20 @@ class NeuSRenderer:
             assert False
 
         pts_radius = torch.linalg.norm(pts, ord=2, dim=-1, keepdim=True).reshape(batch_size, n_samples)
-        inside_sphere = (pts_radius < 1.0*self.radius).float().detach()
-        relax_inside_sphere = (pts_radius < 1.2*self.radius).float().detach()
+        inside_sphere = (pts_radius < 1.0 * self.radius).float().detach()
+        relax_inside_sphere = (pts_radius < 1.2 * self.radius).float().detach()
 
-        if background_alpha is not None:   # render with background
+        if background_alpha is not None:  # render with background
             alpha = alpha * inside_sphere + background_alpha[:, :n_samples] * (1.0 - inside_sphere)
             alpha = torch.cat([alpha, background_alpha[:, n_samples:]], dim=-1)
-            sampled_color = sampled_color * inside_sphere[:, :, None] + background_sampled_color[:, :n_samples] * (1.0 - inside_sphere)[:, :, None]
+            sampled_color = sampled_color * inside_sphere[:, :, None] + background_sampled_color[:, :n_samples] * (
+                                                                                                                              1.0 - inside_sphere)[
+                                                                                                                  :, :,
+                                                                                                                  None]
             sampled_color = torch.cat([sampled_color, background_sampled_color[:, n_samples:]], dim=1)
-        
-        weights = alpha * torch.cumprod(torch.cat([torch.ones([batch_size, 1]), 1. - alpha + 1e-7], -1), -1)[:, :-1]  # n_rays, n_samples
+
+        weights = alpha * torch.cumprod(torch.cat([torch.ones([batch_size, 1]), 1. - alpha + 1e-7], -1), -1)[:,
+                          :-1]  # n_rays, n_samples
         weights_sum = weights.sum(dim=-1, keepdim=True)
 
         color = (sampled_color * weights[:, :, None]).sum(dim=1)
@@ -252,28 +258,29 @@ class NeuSRenderer:
                                             dim=-1) - 1.0) ** 2
         gradient_error = (relax_inside_sphere * gradient_error).sum() / (relax_inside_sphere.sum() + 1e-5)
 
-        variance = (1.0 /inv_variance).mean(dim=-1, keepdim=True)
+        variance = (1.0 / inv_variance).mean(dim=-1, keepdim=True)
         assert (torch.isinf(variance).any() == False)
         assert (torch.isnan(variance).any() == False)
 
         depth = (mid_z_vals * weights[:, :n_samples]).sum(dim=1, keepdim=True)
         depth_varaince = ((mid_z_vals - depth) ** 2 * weights[:, :n_samples]).sum(dim=-1, keepdim=True)
 
-        normal = (gradients.reshape(batch_size, n_samples, 3) * weights[:, :n_samples].reshape(batch_size, n_samples, 1)).sum(dim=1)
+        normal = (gradients.reshape(batch_size, n_samples, 3) * weights[:, :n_samples].reshape(batch_size, n_samples,
+                                                                                               1)).sum(dim=1)
 
         # visualize embedding weights
         if sdf_network.weigth_emb_c2f != None:
             # print(sdf_network.weigth_emb_c2f)
             for id_w in range(len(sdf_network.weigth_emb_c2f)):
-                logs_summary[f'weigth_emb_c2f/level{id_w+1}'] = sdf_network.weigth_emb_c2f[id_w].detach()
-       
+                logs_summary[f'weigth_emb_c2f/level{id_w + 1}'] = sdf_network.weigth_emb_c2f[id_w].detach()
+
         with torch.no_grad():
             if inv_variance[0, 0] > 800:
                 # logging.info(f"Use default inv-variance to calculate peak value")
                 depth_peak = depth.clone()
                 normal_peak = normal.clone()
                 color_peak = color.clone()
-                point_peak = rays_o + rays_d*depth
+                point_peak = rays_o + rays_d * depth
             else:
                 # Reset a large inv-variance to get better peak value
                 inv_variance2 = torch.tensor([800])
@@ -284,12 +291,16 @@ class NeuSRenderer:
                 p2 = prev_cdf2 - next_cdf2
                 c2 = prev_cdf2
                 alpha2 = ((p2 + 1e-5) / (c2 + 1e-5)).reshape(batch_size, n_samples).clip(0.0, 1.0)
-                weights2 = alpha2 * torch.cumprod(torch.cat([torch.ones([batch_size, 1]), 1. - alpha2 + 1e-7], -1), -1)[:, :-1]  # n_rays, n_samples
-        
+                weights2 = alpha2 * torch.cumprod(torch.cat([torch.ones([batch_size, 1]), 1. - alpha2 + 1e-7], -1), -1)[
+                                    :, :-1]  # n_rays, n_samples
+
                 depth_peak = (mid_z_vals * weights2[:, :n_samples]).sum(dim=1, keepdim=True)
-                normal_peak = (gradients.reshape(batch_size, n_samples, 3) * weights2[:, :n_samples].reshape(batch_size, n_samples, 1)).sum(dim=1)
+                normal_peak = (gradients.reshape(batch_size, n_samples, 3) * weights2[:, :n_samples].reshape(batch_size,
+                                                                                                             n_samples,
+                                                                                                             1)).sum(
+                    dim=1)
                 color_peak = (sampled_color[:, :n_samples] * weights2[:, :n_samples, None]).sum(dim=1)
-                point_peak = rays_o + rays_d*depth_peak
+                point_peak = rays_o + rays_d * depth_peak
 
         return {
             'variance': variance,
@@ -316,8 +327,9 @@ class NeuSRenderer:
 
     def render(self, rays_o, rays_d, near, far, perturb_overwrite=-1, background_rgb=None, alpha_inter_ratio=0.0):
         batch_size = len(rays_o)
-        sphere_diameter = torch.abs(far-near).mean()
+        sphere_diameter = torch.abs(far - near).mean()
         sample_dist = sphere_diameter / self.n_samples
+        # ？ z_vals求法，意义
         z_vals = torch.linspace(0.0, 1.0, self.n_samples)
         z_vals = near + (far - near) * z_vals[None, :]
 
@@ -357,7 +369,7 @@ class NeuSRenderer:
 
                 n_steps = 4
                 for i in range(n_steps):
-                    new_z_vals = self.up_sample(rays_o, rays_d, z_vals, sdf, self.n_importance // n_steps, 64 * 2**i)
+                    new_z_vals = self.up_sample(rays_o, rays_d, z_vals, sdf, self.n_importance // n_steps, 64 * 2 ** i)
                     z_vals, sdf = self.cat_z_vals(rays_o, rays_d, z_vals, new_z_vals, sdf)
 
             n_samples = self.n_samples + self.n_importance
@@ -373,22 +385,23 @@ class NeuSRenderer:
 
         # Render
         ret_fine, logs_summary = self.render_core(rays_o,
-                                    rays_d,
-                                    z_vals,
-                                    sample_dist,
-                                    self.sdf_network_fine,
-                                    self.variance_network_fine,
-                                    self.color_network_fine,
-                                    background_rgb=background_rgb,
-                                    background_alpha=background_alpha,
-                                    background_sampled_color=background_sampled_color,
-                                    alpha_inter_ratio=alpha_inter_ratio)
+                                                  rays_d,
+                                                  z_vals,
+                                                  sample_dist,
+                                                  self.sdf_network_fine,
+                                                  self.variance_network_fine,
+                                                  self.color_network_fine,
+                                                  background_rgb=background_rgb,
+                                                  background_alpha=background_alpha,
+                                                  background_sampled_color=background_sampled_color,
+                                                  alpha_inter_ratio=alpha_inter_ratio)
         return ret_fine, logs_summary
 
     def extract_geometry(self, bound_min, bound_max, resolution, threshold=0.0):
         ret = extract_geometry(bound_min, bound_max, resolution, threshold, lambda pts: -self.sdf_network_fine.sdf(pts))
         return ret
-        
+
+
 class NeRFRenderer:
     def __init__(self,
                  nerf_coarse,
@@ -418,7 +431,7 @@ class NeRFRenderer:
 
         if self.n_outside > 0:
             dis_to_center = torch.linalg.norm(pts, ord=2, dim=-1, keepdim=True).clip(1.0, 1e10)
-            pts = torch.cat([pts / dis_to_center, 1.0 / dis_to_center], dim=-1)       # batch_size, n_samples, 4
+            pts = torch.cat([pts / dis_to_center, 1.0 / dis_to_center], dim=-1)  # batch_size, n_samples, 4
 
         dirs = rays_d[:, None, :].expand(batch_size, n_samples, 3)
 
@@ -428,7 +441,8 @@ class NeRFRenderer:
         density, sampled_color = nerf(pts, dirs)
         alpha = 1.0 - torch.exp(-F.relu(density.reshape(batch_size, n_samples)) * dists)
         alpha = alpha.reshape(batch_size, n_samples)
-        weights = alpha * torch.cumprod(torch.cat([torch.ones([batch_size, 1]), 1. - alpha + 1e-7], -1), -1)[:, :-1]  # n_rays, n_samples
+        weights = alpha * torch.cumprod(torch.cat([torch.ones([batch_size, 1]), 1. - alpha + 1e-7], -1), -1)[:,
+                          :-1]  # n_rays, n_samples
         sampled_color = sampled_color.reshape(batch_size, n_samples, 3)
         color = (weights[:, :, None] * sampled_color).sum(dim=1)
         if background_rgb is not None:
@@ -478,7 +492,8 @@ class NeRFRenderer:
             alpha = torch.cat([alpha, background_alpha], dim=-1)
             sampled_color = torch.cat([sampled_color, background_sampled_color], dim=1)
 
-        weights = alpha * torch.cumprod(torch.cat([torch.ones([batch_size, 1]), 1. - alpha + 1e-7], -1), -1)[:, :-1]  # n_rays, n_samples
+        weights = alpha * torch.cumprod(torch.cat([torch.ones([batch_size, 1]), 1. - alpha + 1e-7], -1), -1)[:,
+                          :-1]  # n_rays, n_samples
         color = (weights[:, :, None] * sampled_color.reshape(batch_size, n_samples + self.n_outside, 3)).sum(dim=1)
 
         return {
@@ -583,5 +598,6 @@ class NeRFRenderer:
         }
 
     def extract_geometry(self, bound_min, bound_max, resolution, threshold=25):
-        ret = extract_geometry(bound_min, bound_max, resolution, threshold, lambda pts: self.nerf_fine(pts, torch.zeros_like(pts))[0])
+        ret = extract_geometry(bound_min, bound_max, resolution, threshold,
+                               lambda pts: self.nerf_fine(pts, torch.zeros_like(pts))[0])
         return ret
