@@ -18,14 +18,14 @@ class SDFNetwork(nn.Module):
                  geometric_init=True,
                  weight_norm=True,
                  activation='softplus',
-                 reverse_geoinit = False,
-                 use_emb_c2f = False,
-                 emb_c2f_start = 0.1,
-                 emb_c2f_end = 0.5):
+                 reverse_geoinit=False,
+                 use_emb_c2f=False,
+                 emb_c2f_start=0.1,
+                 emb_c2f_end=0.5):
         super(SDFNetwork, self).__init__()
 
         dims = [d_in] + [d_hidden for _ in range(n_layers)] + [d_out]
-
+        # print("dims: ", dims)
         self.embed_fn_fine = None
 
         self.multires = multires
@@ -33,6 +33,7 @@ class SDFNetwork(nn.Module):
             embed_fn, input_ch = get_embedder(multires, input_dims=d_in, normalize=False)
             self.embed_fn_fine = embed_fn
             dims[0] = input_ch
+
         logging.info(f'SDF input dimension: {dims[0]}')
 
         self.num_layers = len(dims)
@@ -42,16 +43,20 @@ class SDFNetwork(nn.Module):
         if self.use_emb_c2f:
             self.emb_c2f_start = emb_c2f_start
             self.emb_c2f_end = emb_c2f_end
-            logging.info(f"Use coarse-to-fine embedding (Level: {self.multires}): [{self.emb_c2f_start}, {self.emb_c2f_end}]")
-
+            logging.info(
+                f"Use coarse-to-fine embedding (Level: {self.multires}): [{self.emb_c2f_start}, {self.emb_c2f_end}]")
+        # print("after encoding, dims: ", dims)
         self.alpha_ratio = 0.0
+        # print("skip layer @ ", self.skip_in)
 
         for l in range(0, self.num_layers - 1):
+            # print(l)
             if l + 1 in self.skip_in:
+                print("check", dims[l + 1], dims[0])
                 out_dim = dims[l + 1] - dims[0]
             else:
                 out_dim = dims[l + 1]
-
+            # print("out_dim is ", out_dim)
             lin = nn.Linear(dims[l], out_dim)
 
             if geometric_init:
@@ -93,9 +98,12 @@ class SDFNetwork(nn.Module):
 
     def forward(self, inputs):
         inputs = inputs * self.scale
+        # print(inputs.shape)
 
         if self.use_emb_c2f and self.multires > 0:
-            inputs, weigth_emb_c2f = positional_encoding_c2f(inputs, self.multires, emb_c2f=[self.emb_c2f_start, self.emb_c2f_end], alpha_ratio = (self.iter_step / self.end_iter))
+            inputs, weigth_emb_c2f = positional_encoding_c2f(inputs, self.multires,
+                                                             emb_c2f=[self.emb_c2f_start, self.emb_c2f_end],
+                                                             alpha_ratio=(self.iter_step / self.end_iter))
             self.weigth_emb_c2f = weigth_emb_c2f
         elif self.embed_fn_fine is not None:
             inputs = self.embed_fn_fine(inputs)
@@ -108,11 +116,12 @@ class SDFNetwork(nn.Module):
 
             if l in self.skip_in:
                 x = torch.cat([x, inputs], 1) / np.sqrt(2)
-
+                # print(x.shape)
             x = lin(x)
 
             if l < self.num_layers - 2:
                 x = self.activation(x)
+
         return torch.cat([x[:, :1] / self.scale, x[:, 1:]], dim=-1)
 
     def sdf(self, x):
@@ -134,6 +143,7 @@ class SDFNetwork(nn.Module):
             only_inputs=True)[0]
         return gradients.unsqueeze(1)
 
+
 class FixVarianceNetwork(nn.Module):
     def __init__(self, base):
         super(FixVarianceNetwork, self).__init__()
@@ -146,8 +156,9 @@ class FixVarianceNetwork(nn.Module):
     def forward(self, x):
         return torch.ones([len(x), 1]) * np.exp(-self.iter_step / self.base)
 
+
 class SingleVarianceNetwork(nn.Module):
-    def __init__(self, init_val=1.0, use_fixed_variance = False):
+    def __init__(self, init_val=1.0, use_fixed_variance=False):
         super(SingleVarianceNetwork, self).__init__()
         if use_fixed_variance:
             logging.info(f'Use fixed variance: {init_val}')
@@ -157,6 +168,7 @@ class SingleVarianceNetwork(nn.Module):
 
     def forward(self, x):
         return torch.ones([len(x), 1]) * torch.exp(self.variance * 10.0)
+
 
 class RenderingNetwork(nn.Module):
     def __init__(
@@ -226,7 +238,8 @@ class RenderingNetwork(nn.Module):
 
 # Code from nerf-pytorch
 class NeRF(nn.Module):
-    def __init__(self, D=8, W=256, d_in=3, d_in_view=3, multires=0, multires_view=0, output_ch=4, skips=[4], use_viewdirs=False):
+    def __init__(self, D=8, W=256, d_in=3, d_in_view=3, multires=0, multires_view=0, output_ch=4, skips=[4],
+                 use_viewdirs=False):
         """
         """
         super(NeRF, self).__init__()
@@ -253,8 +266,9 @@ class NeRF(nn.Module):
         self.use_viewdirs = use_viewdirs
 
         self.pts_linears = nn.ModuleList(
-            [nn.Linear(self.input_ch, W)] + [nn.Linear(W, W) if i not in self.skips else nn.Linear(W + self.input_ch, W) for i in
-                                        range(D - 1)])
+            [nn.Linear(self.input_ch, W)] + [nn.Linear(W, W) if i not in self.skips else nn.Linear(W + self.input_ch, W)
+                                             for i in
+                                             range(D - 1)])
 
         ### Implementation according to the official code release (https://github.com/bmild/nerf/blob/master/run_nerf_helpers.py#L104-L105)
         self.views_linears = nn.ModuleList([nn.Linear(self.input_ch_view + W, W // 2)])

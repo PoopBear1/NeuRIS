@@ -174,8 +174,8 @@ class Runner:
         # Networks
         params_to_train = []
         if self.model_type == 'neus':
-            self.nerf_outside = NeRF(**self.conf['model.tiny_nerf']).to(self.device)
             self.sdf_network_fine = SDFNetwork(**self.conf['model.sdf_network']).to(self.device)
+            self.nerf_outside = NeRF(**self.conf['model.tiny_nerf']).to(self.device)
             self.variance_network_fine = SingleVarianceNetwork(**self.conf['model.variance_network']).to(self.device)
             self.color_network_fine = RenderingNetwork(**self.conf['model.rendering_network']).to(self.device)
             params_to_train += list(self.nerf_outside.parameters())
@@ -395,7 +395,7 @@ class Runner:
         patchmatch_out, logs_summary = None, {}
         if self.iter_step > self.patchmatch_start:
             # ensure initialization of confidence_map, depth_map and points_map
-            print(self.dataset.confidence_accum)
+            # print(self.dataset.confidence_accum)
             # exit(-2)
             if self.dataset.confidence_accum is None:
                 self.initialize_accumulated_results(mode=self.conf['dataset.mode_init_accum'],
